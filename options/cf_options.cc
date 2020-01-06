@@ -96,6 +96,7 @@ uint64_t MultiplyCheckOverflow(uint64_t op1, double op2) {
 uint64_t MaxFileSizeForLevel(const MutableCFOptions& cf_options,
     int level, CompactionStyle compaction_style, int base_level,
     bool level_compaction_dynamic_level_bytes) {
+
   if (!level_compaction_dynamic_level_bytes || level < base_level ||
       compaction_style != kCompactionStyleLevel) {
     assert(level >= 0);

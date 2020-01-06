@@ -37,6 +37,7 @@ class Comparator;
 class ConcurrentTaskLimiter;
 class Env;
 enum InfoLogLevel : unsigned char;
+enum StorageMaterial : unsigned char;
 class SstFileManager;
 class FilterPolicy;
 class Logger;
@@ -337,13 +338,17 @@ enum class WALRecoveryMode : char {
   // operate with low grade unrelated data
   kSkipAnyCorruptedRecords = 0x03,
 };
+//
+
 
 struct DbPath {
   std::string path;
   uint64_t target_size;  // Target size of total files under the path, in byte.
-
+  StorageMaterial material;
   DbPath() : target_size(0) {}
-  DbPath(const std::string& p, uint64_t t) : path(p), target_size(t) {}
+  DbPath(const std::string& p, uint64_t t) : path(p), target_size(t), material(kNOTSET) {}
+  DbPath(const std::string& p, uint64_t t,StorageMaterial ma) : path(p), target_size(t), material(ma) {}
+
 };
 
 struct DBOptions {

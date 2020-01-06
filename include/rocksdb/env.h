@@ -972,6 +972,14 @@ enum InfoLogLevel : unsigned char {
   NUM_INFO_LOG_LEVELS,
 };
 
+enum StorageMaterial : unsigned char{
+    kNOTSET = 0x00,
+    kPM = 0x01,
+    kNVMeSSD = 0x02,
+    kSATASSD = 0x03,
+    kSATAHDD = 0x04,
+};
+
 // An interface for writing log messages.
 class Logger {
  public:

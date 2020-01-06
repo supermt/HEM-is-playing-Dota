@@ -373,13 +373,32 @@ Compaction* LevelCompactionBuilder::PickCompaction() {
   return c;
 }
 
+StorageMaterial align_path_for_levels(){
+    return kNOTSET;
+}
+
+int size_amplication(StorageMaterial ma){
+    switch (ma){
+        case kPM:
+            return 1;
+        case kNVMeSSD:
+            return 2;
+        case kSATASSD:
+            return 4;
+        case kSATAHDD:
+            return 1;
+        default:
+            return 1;
+    }
+}
+
 Compaction* LevelCompactionBuilder::GetCompaction() {
   auto c = new Compaction(
       vstorage_, ioptions_, mutable_cf_options_, std::move(compaction_inputs_),
       output_level_,
       MaxFileSizeForLevel(mutable_cf_options_, output_level_,
                           ioptions_.compaction_style, vstorage_->base_level(),
-                          ioptions_.level_compaction_dynamic_level_bytes),
+                          ioptions_.level_compaction_dynamic_level_bytes) * size_amplication(align_path_for_levels()),
       mutable_cf_options_.max_compaction_bytes,
       GetPathId(ioptions_, mutable_cf_options_, output_level_),
       GetCompressionType(ioptions_, vstorage_, mutable_cf_options_,

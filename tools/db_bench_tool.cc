@@ -78,9 +78,14 @@
 #include <io.h>  // open/close
 #endif
 
+#include <boost/lexical_cast.hpp> //I've multiple versions of boost installed, so this path may be different for you
+
+
+
 using GFLAGS_NAMESPACE::ParseCommandLineFlags;
 using GFLAGS_NAMESPACE::RegisterFlagValidator;
 using GFLAGS_NAMESPACE::SetUsageMessage;
+
 
 DEFINE_string(
     benchmarks,
@@ -557,6 +562,12 @@ DEFINE_bool(show_table_properties, false,
             " stats_interval is set and stats_per_interval is on.");
 
 DEFINE_string(db, "", "Use the db with the following name.");
+
+//Add by jinghuan, adapting to the new db_paths
+DEFINE_string(db_paths,"", "Followed by [{\"/Path/To/DB\",size_in_bytes,\"Storage_Material\"},"
+                           "{\"/Path/To/DB\",size_in_bytes,\"Storage_Material\"}]");
+
+
 
 // Read cache flags
 
@@ -2468,6 +2479,63 @@ class Benchmark {
     }
   }
 
+  StorageMaterial string2material(std::string material){
+      if (material == "pm"){
+          return kPM;
+      }
+      if (material == "nvmessd"){
+          return kNVMeSSD;
+      }
+      if (material == "satassd"){
+          return kSATASSD;
+      }
+      if (material == "satahdd"){
+          return kSATAHDD;
+      }
+      return kNOTSET;
+  }
+
+
+  void split(const std::string& s, std::vector<std::string>& tokens, const std::string& delimiters=":"){
+    std::string::size_type lastPos = s.find_first_not_of(delimiters,0);
+    std::string::size_type pos = s.find_first_not_of(delimiters,lastPos);
+    tokens.clear();
+    while (std::string::npos != pos || std::string::npos !=lastPos){
+        tokens.push_back(s.substr(lastPos,pos-lastPos));
+        lastPos = s.find_first_not_of(delimiters,pos);
+        pos = s.find_first_of(delimiters,lastPos);
+    }
+  }
+
+  void phraseDbPathOpt(std::string db_paths,std::vector<DbPath> &result_list){
+      result_list.clear();
+      if (db_paths != "") {
+          // [{"path":size:"PM"},{},{}
+          std::vector<std::string> tokens;
+          split(db_paths, tokens,",");
+          for (std::string token : tokens){
+            std::vector<std::string> configs;
+            split(token,configs,":");
+            DbPath path;
+            int i=0;
+            for (std::string config:configs){
+                i++;
+//                path.target_size=atol(config.c_str());
+              switch(i){
+                case 2: std::cout << config << std::endl; path.path = std::string(config.c_str());break;
+                case 3: path.target_size = atol(config.c_str());break;
+                case 4: path.material = string2material(config);break;
+                default: break;
+              }
+            }
+            result_list.emplace_back(path);
+          }
+          return;
+      }else{
+          return ;
+      }
+  }
+
  public:
   Benchmark()
       : cache_(NewCache(FLAGS_cache_size)),
@@ -2523,8 +2591,17 @@ class Benchmark {
       exit(1);
     }
 
+    // Add by jinghuan, Compiling the db_paths
+    std::vector<DbPath> path_list;
+    phraseDbPathOpt(FLAGS_db_paths,path_list);
+
     std::vector<std::string> files;
     FLAGS_env->GetChildren(FLAGS_db, &files);
+
+    for (DbPath path : path_list){
+        FLAGS_env->GetChildren(path.path,&files);
+    }
+
     for (size_t i = 0; i < files.size(); i++) {
       if (Slice(files[i]).starts_with("heap-")) {
         FLAGS_env->DeleteFile(FLAGS_db + "/" + files[i]);
@@ -2542,6 +2619,12 @@ class Benchmark {
       }
 #endif  // !ROCKSDB_LITE
       DestroyDB(FLAGS_db, options);
+
+      for (DbPath path : path_list){
+        DestroyDB(path.path, options);
+        FLAGS_env->CreateDir(path.path);
+      }
+
       if (!FLAGS_wal_dir.empty()) {
         FLAGS_env->DeleteDir(FLAGS_wal_dir);
       }
